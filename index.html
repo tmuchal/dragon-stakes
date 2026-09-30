@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Dragon Stakes</title>
+<meta name="description" content="A project stakes RF into an open sky. Fly in on a dragon with your Rare Friend, free or with a stake, and take coins from gold rings, wild monsters and other riders in a call-and-response rhythm duel.">
+<meta name="theme-color" content="#16202a">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Dragon Stakes">
+<meta property="og:description" content="Fly free. Ride a dragon. Take what the others carry.">
+<meta property="og:image" content="og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dragon Stakes">
+<meta name="twitter:description" content="Fly free. Ride a dragon. Take what the others carry.">
+<meta name="twitter:image" content="og.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2316202a'/%3E%3Ccircle cx='16' cy='16' r='8.5' fill='none' stroke='%23ffd24a' stroke-width='4.5'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="og.png">
+<script>
+  // the chosen language is known before anything is drawn, so the page is marked with it from the start
+  try { const q = new URLSearchParams(location.search).get("lang") || JSON.parse(localStorage.getItem("dgs1.lang") || '"en"'); document.documentElement.lang = q === "ko" ? "ko" : "en"; } catch (e) { /* stays English */ }
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script>
+  // the Korean font is large, so it is only fetched when the page is shown in Korean
+  window.__koFont = () => { if (document.getElementById("koFont")) return; document.head.append(Object.assign(document.createElement("link"), { id: "koFont", rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500;700;800&display=swap" })); };
+  if (document.documentElement.lang === "ko") window.__koFont();
+</script>
+<!-- One version for every file of the game, so a returning browser never mixes old and new modules.
+     The import map rewrites each module address, whoever imports it. A new module file goes in the list. -->
+<script>
+  const V = "14", MODULES = ["game", "world", "view", "view-fx", "scenery", "scenery-sites", "monsters", "dragons", "rhythm", "net", "chain"];
+  const map = { imports: Object.fromEntries(MODULES.map(m => [`./js/${m}.js`, `./js/${m}.js?v=${V}`])) };
+  document.head.append(Object.assign(document.createElement("script"), { type: "importmap", textContent: JSON.stringify(map) }));
+  document.head.append(Object.assign(document.createElement("link"), { rel: "stylesheet", href: `style.css?v=${V}` }));
+  // fetched early, and only after the import map is in place (a module fetched before it would make the browser ignore the map)
+  for (const href of ["https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", ...MODULES.map(m => `./js/${m}.js?v=${V}`)]) document.head.append(Object.assign(document.createElement("link"), { rel: "modulepreload", href }));
+</script>
+</head>
+<body>
+<canvas id="world"></canvas>
+
+<!-- ============ IN FLIGHT ============ -->
+<div id="hud" hidden>
+  <div id="tags"></div>
+  <div class="card mine">
+    <span class="k"><span data-en="Carried" data-ko="든 코인">Carried</span><span class="more" data-en=" · at risk" data-ko=" · 뺏길 수 있음"> · at risk</span></span>
+    <b><span id="stakeV">0</span> RF</b>
+    <small class="purseRow"><span data-en="Safe purse" data-ko="안전한 지갑">Safe purse</span> <span id="purseV">0</span> RF</small>
+    <small><span data-en="Sky pool" data-ko="하늘 풀">Sky pool</span> <span id="poolV">0</span> RF</small>
+    <div class="chips" id="chips"></div>
+    <div class="alt" id="alt" aria-hidden="true"><i id="altGround"></i><i id="altMe"></i></div>
+    <span class="altV"><span id="altV">0</span> m</span>
+  </div>
+  <div class="card board">
+    <span class="k" id="boardK">Riders in the sky</span>
+    <ol id="board"></ol>
+  </div>
+  <canvas id="map" width="150" height="150"></canvas>
+  <div class="topBtns">
+    <button class="pill" id="logBtn" type="button" data-en="Fight record" data-ko="싸움 기록">Fight record</button>
+    <button class="pill" id="pauseBtn" type="button">Pause</button>
+  </div>
+  <div class="eventPill" id="eventPill" hidden></div>
+  <div class="coach" id="coach" hidden><span id="coachN"></span><p id="coachTip"></p><button type="button" id="coachSkip" data-en="Skip tips" data-ko="도움말 끄기">Skip tips</button></div>
+  <div id="toasts"></div>
+  <div class="promptRow" id="promptRow"><button id="prompt" type="button" hidden></button><button id="promptNo" type="button" hidden></button></div>
+  <p class="hint" id="hint"></p>
+
+  <div class="touch" id="touch">
+    <div class="stick" id="stick"><i></i></div>
+    <div class="tbtns"><button type="button" id="tBoost" data-en="Boost" data-ko="가속">Boost</button></div>
+  </div>
+
+  <div class="duel" id="duel" hidden>
+    <div class="dSide"><div class="dAva" id="dAva0"></div><div class="dInfo"><div class="dName" id="dName0"></div><div class="dRole" id="dRole0"></div></div><b id="dS0">0</b></div>
+    <div class="dMid"><div class="vs" id="dRound"></div><div class="dRule" id="dRule"></div></div>
+    <div class="dSide them"><b id="dS1">0</b><div class="dInfo"><div class="dName" id="dName1"></div><div class="dRole" id="dRole1"></div></div><div class="dAva" id="dAva1"></div></div>
+  </div>
+  <div class="callout" id="callout" hidden></div>
+  <div class="laneWrap" id="laneWrap"><canvas id="lane"></canvas></div>
+
+  <!-- a monster's dare: a wheel of luck with the odds printed on it and beside it -->
+  <div class="wheel" id="wheel" hidden>
+    <div class="wheelBox">
+      <div class="wheelHead"><b id="wheelTitle"></b><span id="wheelSub"></span></div>
+      <div class="wheelBody">
+        <div class="wheelSpin"><div class="wheelDisc" id="wheelDisc"></div><i class="wheelPin" id="wheelPin"></i><i class="wheelHub"></i></div>
+        <table class="odds" id="wheelOdds"></table>
+      </div>
+      <div class="wheelOut" id="wheelOut"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="pause" hidden>
+    <div class="box">
+      <h2 id="pauseHead">Paused</h2>
+      <p id="pauseSub"></p>
+      <p class="skyTag" id="pauseSky" hidden></p>
+      <div class="quests mini" id="pauseQuests"></div>
+      <button class="primary" id="resumeBtn" type="button">Resume</button>
+      <button class="ghost" id="logBtn2" type="button" data-en="Fight record" data-ko="싸움 기록">Fight record</button>
+      <button class="ghost" id="guideBtn2" type="button" data-en="How to play" data-ko="하는 법">How to play</button>
+      <button class="ghost" id="quitBtn" type="button">Leave now</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SPLASH ============ -->
+<section class="overlay splash" id="splash" hidden>
+  <div class="splashIn">
+    <h1>Dragon<br>Stakes</h1>
+    <p data-en="Fly free. Ride a dragon. Take what the others carry." data-ko="빈손으로 날아오른다. 드래곤을 탄다. 남이 든 것을 뺏는다.">Fly free. Ride a dragon. Take what the others carry.</p>
+    <button class="primary big" id="playBtn" type="button" data-en="Play" data-ko="시작하기">Play</button>
+    <div class="seg" id="langSeg2"><button type="button" data-v="en">EN</button><button type="button" data-v="ko">한국어</button></div>
+  </div>
+</section>
+
+<!-- ============ THE ROOST (setup) ============ -->
+<section class="overlay" id="club" hidden>
+  <div class="panel wide">
+    <header>
+      <h1>Dragon Stakes</h1>
+      <div class="rank" id="rankBox"></div>
+      <div class="row">
+        <div class="seg" id="langSeg"><button type="button" data-v="en">EN</button><button type="button" data-v="ko">한국어</button></div>
+        <button class="ghost sm" id="guideBtn" type="button" data-en="How to play" data-ko="하는 법">How to play</button>
+        <button class="ghost sm" id="muteBtn" type="button">Sound on</button>
+      </div>
+    </header>
+    <p class="poolLine" id="poolLine"></p>
+    <ol class="flow">
+      <li><b>1</b><span data-en="Fly in: free, or bring a stake" data-ko="빈손 또는 판돈을 들고 입장">Fly in</span></li>
+      <li><b>2</b><span data-en="Fly anywhere on your dragon" data-ko="드래곤을 타고 어디든 비행">Fly anywhere</span></li>
+      <li><b>3</b><span data-en="Take coins from rings, monsters and other riders. Beat the crowned rider for three quarters" data-ko="링·몬스터·다른 라이더에게서 코인 획득. 왕관 쓴 라이더를 이기면 4분의 3">Take coins</span></li>
+      <li><b>4</b><span data-en="Land at the Roost, the tower in the gold light, to keep them" data-ko="금빛 둥지에 내려야 내 것">Land at the Roost</span></li>
+    </ol>
+    <div class="cols">
+      <div class="col">
+        <div class="pick">
+          <span class="k" data-en="Your Rare Friend" data-ko="내 레어 프렌드">Your Rare Friend</span>
+          <div class="pickGrid" id="pick"></div>
+          <div class="loadIn"><input id="loadId" inputmode="numeric" autocomplete="off" aria-label="Token ID"><button id="loadBtn" type="button" class="ghost sm" data-en="Load my Friend" data-ko="내 프렌드 불러오기">Load my Friend</button></div>
+          <p class="tiny" id="loadMsg"></p>
+        </div>
+        <div class="pick">
+          <span class="k" data-en="Your dragon" data-ko="내 드래곤">Your dragon</span>
+          <div class="dragonGrid" id="dragons"></div>
+        </div>
+        <details class="fold" id="shopBox">
+          <summary><span class="k" data-en="Roost shop · for this flight" data-ko="둥지 상점 · 이번 비행용">Roost shop</span><em id="shopSum"></em></summary>
+          <div class="shop" id="shop"></div>
+          <p class="tiny" id="burnLine"></p>
+        </details>
+      </div>
+      <div class="col">
+        <div class="pick sky">
+          <span class="k" data-en="Alone, or fly with friends (beta)" data-ko="혼자, 또는 친구와 함께 날기 (베타)">Fly with friends (beta)</span>
+          <div class="skyRow">
+            <div class="seg" id="skySeg"><button type="button" data-v="alone" data-en="Fly alone" data-ko="혼자 날기">Fly alone</button><button type="button" data-v="create" data-en="Create a sky" data-ko="하늘 만들기">Create a sky</button><button type="button" data-v="join" data-en="Join with a code" data-ko="코드로 들어가기">Join with a code</button></div>
+            <label class="nameIn"><span data-en="Your name (up to 16 letters)" data-ko="내 이름 (16자까지)">Your name</span><input id="nameIn" maxlength="16" autocomplete="off" spellcheck="false"></label>
+          </div>
+          <div class="skyBox" id="skyBox" hidden>
+            <div class="skyLine" id="skyHost" hidden><b class="skyCode" id="skyCodeOut"></b><button class="ghost sm" id="skyCopy" type="button" data-en="Copy invite link" data-ko="초대 링크 복사">Copy invite link</button></div>
+            <div class="skyLine" id="skyJoin" hidden><input id="skyCode" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Sky code"><button class="ghost sm" id="skyJoinBtn" type="button" data-en="Join" data-ko="들어가기">Join</button></div>
+            <p class="tiny" data-en="The host's device keeps score. Play with people you trust." data-ko="방장 기기가 점수를 관리합니다. 믿을 수 있는 사람과 하세요.">.</p>
+            <p class="tiny" id="skyMsg"></p>
+            <button class="ghost sm" id="skyRejoin" type="button" hidden></button>
+            <ul class="skyList" id="skyList" hidden></ul>
+          </div>
+        </div>
+        <div class="choice">
+          <div><span class="k" data-en="Stake to bring" data-ko="들고 갈 판돈">Stake to bring</span><div class="seg" id="stakeSeg"></div></div>
+          <div><span class="k" data-en="Level" data-ko="난이도">Level</span><div class="seg" id="levelSeg"><button type="button" data-v="easy" data-en="Easy" data-ko="쉬움">Easy</button><button type="button" data-v="club" data-en="Normal" data-ko="보통">Normal</button><button type="button" data-v="pro" data-en="Hard" data-ko="어려움">Hard</button></div></div>
+        </div>
+        <p class="tiny stakeNote" id="stakeNote"></p>
+        <details class="fold" id="questBox">
+          <summary><span class="k" data-en="Today's quests" data-ko="오늘의 퀘스트">Today's quests</span><em id="questSum"></em></summary>
+          <div class="quests" id="quests"></div>
+        </details>
+      </div>
+    </div>
+    <p class="seal" data-en="Friends and their pixels are read live from the Rare Friends Generations contracts on Robinhood Chain. RF here is simulated for the Vibeathon: every new visitor gets a 1,000 RF purse, and the sky's pool stands in for coins a sponsoring project would stake on-chain." data-ko="프렌드와 도트 그림은 Robinhood Chain의 Rare Friends Generations 컨트랙트에서 실시간으로 읽어 옵니다. 여기서 RF는 바이브톤용 가상 코인입니다. 처음 온 사람은 지갑에 1,000 RF를 받고, 하늘 풀은 후원 프로젝트가 온체인으로 걸 코인을 대신합니다.">.</p>
+    <div class="goBar">
+      <span class="tiny" id="purseLine"></span>
+      <button class="primary big" id="goBtn" type="button"><span id="goMain">Take off</span><small id="goSub"></small></button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LANDED ============ -->
+<section class="overlay" id="result" hidden>
+  <div class="panel narrow">
+    <span class="k" id="resKicker"></span>
+    <h1 id="resHead"></h1>
+    <p class="lede" id="resSub"></p>
+    <div class="rank res" id="resRank"></div>
+    <dl class="stats" id="resStats"></dl>
+    <p class="tiny" id="resNet" hidden></p>
+    <div class="row wrapRow">
+      <button class="primary" id="againBtn" type="button" data-en="Fly again" data-ko="다시 날기">Fly again</button>
+      <button class="primary navy" id="rejoinBtn" type="button" hidden></button>
+      <button class="ghost" id="logBtn3" type="button" data-en="Fight record" data-ko="싸움 기록">Fight record</button>
+      <button class="ghost" id="copyBtn" type="button" data-en="Copy result" data-ko="결과 복사">Copy result</button>
+      <button class="ghost" id="homeBtn" type="button" data-en="Change setup" data-ko="설정 바꾸기">Change setup</button>
+    </div>
+  </div>
+</section>
+
+<dialog id="guide" class="dlg">
+  <div class="gHead"><h2 data-en="How to play" data-ko="하는 법">How to play</h2></div>
+  <div class="gBody">
+    <details open>
+      <summary data-en="Flying" data-ko="비행">Flying</summary>
+      <p class="forTouch" data-en="Push the stick up to climb, down to dive, sideways to turn. The further you push, the steeper. Hold Boost to go faster. The stick also appears wherever your left thumb lands. Drag on the right to look around, pinch to zoom." data-ko="스틱을 위로 밀면 상승, 아래로 하강, 옆으로 밀면 방향 전환입니다. 많이 밀수록 가파릅니다. 가속 버튼은 누르고 있는 동안 빨라집니다. 왼손 엄지가 닿는 곳에 스틱이 나타납니다. 오른쪽을 드래그하면 둘러보고, 두 손가락으로 확대합니다.">.</p>
+      <p class="forKeys" data-html data-en="<kbd>W</kbd> or <kbd>↑</kbd> climb · <kbd>S</kbd> or <kbd>↓</kbd> dive · <kbd>A</kbd> <kbd>D</kbd> or <kbd>←</kbd> <kbd>→</kbd> turn · hold <kbd>Shift</kbd> to boost · <kbd>E</kbd> fight, land or take a dare · <kbd>Q</kbd> decline a dare · <kbd>Esc</kbd> pause. Drag to look around, scroll to zoom." data-ko="<kbd>W</kbd> 또는 <kbd>↑</kbd> 상승 · <kbd>S</kbd> 또는 <kbd>↓</kbd> 하강 · <kbd>A</kbd> <kbd>D</kbd> 또는 <kbd>←</kbd> <kbd>→</kbd> 방향 · <kbd>Shift</kbd>를 누르고 있으면 가속 · <kbd>E</kbd> 싸움, 내리기, 내기 받기 · <kbd>Q</kbd> 내기 거절 · <kbd>Esc</kbd> 멈춤. 드래그로 둘러보고 휠로 확대합니다.">.</p>
+      <p data-en="Let go and the dragon levels off and holds its height. White rings rising over an island are rising air: they lift you for free. The bar by your coins shows how high you are. Each dragon's one line is its real edge." data-ko="손을 떼면 드래곤이 수평을 잡고 높이를 유지합니다. 섬 위로 올라가는 흰 고리는 상승 기류라 공짜로 떠오릅니다. 코인 옆 막대가 지금 높이입니다. 드래곤마다 적힌 한 줄이 실제 강점입니다.">.</p>
+    </details>
+    <details open>
+      <summary data-en="Fights" data-ko="싸움">Fights</summary>
+      <p class="forTouch" data-en="Fly close to another rider and tap the Fight button. Both of you need at least 1 RF. A fight is two rounds. Round 1: you tap any rhythm over four beats and they play it back. Round 2: they go first, you echo. In a fight the whole screen is the drum." data-ko="다른 라이더 가까이 가서 '싸움 걸기' 버튼을 누르세요. 둘 다 1 RF 이상 들고 있어야 합니다. 싸움은 두 판입니다. 1판: 내가 4박자 동안 아무 리듬이나 먼저 치면 상대가 따라 칩니다. 2판: 상대가 먼저 치고 내가 따라 칩니다. 싸움 중에는 화면 어디를 눌러도 박자가 됩니다.">.</p>
+      <p class="forKeys" data-html data-en="Fly close to another rider and press <kbd>E</kbd>. Both of you need at least 1 RF. A fight is two rounds. Round 1: you tap any rhythm over four beats and they play it back. Round 2: they go first, you echo. Tap with <kbd>Space</kbd> or a click." data-ko="다른 라이더 가까이 가서 <kbd>E</kbd>를 누르세요. 둘 다 1 RF 이상 들고 있어야 합니다. 싸움은 두 판입니다. 1판: 내가 4박자 동안 아무 리듬이나 먼저 치면 상대가 따라 칩니다. 2판: 상대가 먼저 치고 내가 따라 칩니다. <kbd>스페이스</kbd>나 클릭으로 칩니다.">.</p>
+      <p data-en="Every beat the echo misses, every late answer and every stray tap is a hit. More hits wins. There is no fixed pattern: up to eight taps, stamped where they land; fewer than 3 lands nothing." data-ko="따라 치다 놓친 박자, 늦은 박자, 헛친 박자가 전부 한 방입니다. 더 많이 맞힌 쪽이 이깁니다. 정해진 리듬은 없고 최대 8번, 치는 자리에 찍힙니다. 3번 미만은 한 방도 못 맞힙니다.">.</p>
+    </details>
+    <details>
+      <summary data-en="Whose coins are these?" data-ko="이 코인은 누구 것인가요?">Whose coins are these?</summary>
+      <p data-en="The project funds the sky: every coin in a ring, a treasure, a monster's hoard or a computer rider's stake comes out of its pool. You do not need coins to play: fly in free, take your share, land at the Roost to keep it. Bringing a stake lets you fight from the first second, but it is at risk until you land." data-ko="하늘은 프로젝트가 채웁니다. 링, 보물, 몬스터의 보물 더미, 컴퓨터 라이더의 판돈이 전부 그 풀에서 나옵니다. 코인이 없어도 됩니다. 빈손으로 들어와 내 몫을 챙기고 둥지에 내리면 내 것입니다. 판돈을 들고 가면 처음부터 싸울 수 있지만 내리기 전까지는 뺏길 수 있습니다.">.</p>
+      <p data-en="RF here is simulated for the Vibeathon. A real sky would be funded on-chain by the project that sponsors it." data-ko="여기서 RF는 바이브톤용 가상 코인입니다. 실제 하늘이라면 후원하는 프로젝트가 온체인으로 풀을 겁니다.">.</p>
+    </details>
+    <details>
+      <summary data-en="Coins, the crown and streaks" data-ko="코인, 왕관, 연승">Coins, the crown and streaks</summary>
+      <p data-en="The winner takes half of what the loser carries, rounded up; 5% of what moves is burned; a draw moves nothing. The rider carrying the most, from 50 RF, wears the crown: beat it and you take three quarters. Only a landing at the Roost banks what you won: leave the sky anywhere else and you keep just what you brought, and the rest goes back to the sky. Inside the Roost's gold light nobody can be challenged, and both riders are shielded for 8 seconds after a fight. Wins in a row are a streak: no coins, but it counts for quests and rank." data-ko="이긴 쪽이 진 쪽이 든 코인의 절반(올림)을 가져가고, 옮겨지는 코인의 5%는 소각되며, 비기면 아무것도 움직이지 않습니다. 가장 많이 든 라이더는 50 RF부터 왕관을 씁니다. 왕관 쓴 라이더를 이기면 4분의 3을 가져옵니다. 딴 코인은 둥지에 내려야만 내 것이 됩니다. 다른 곳에서 하늘을 떠나면 들고 간 만큼만 챙기고 나머지는 하늘로 돌아갑니다. 둥지의 금빛 안에서는 싸움을 걸 수 없고, 싸움 뒤에는 둘 다 8초 동안 보호막이 생깁니다. 연달아 이기면 연승입니다. 코인은 안 움직이지만 퀘스트와 등급에 반영됩니다.">.</p>
+    </details>
+    <details>
+      <summary data-en="Monsters and their dare" data-ko="몬스터와 내기">Monsters and their dare</summary>
+      <p data-en="A monster may fly up beside you and dare you. Accepting costs nothing and is settled by luck alone: one spin, with these odds, and 5% of what moves is burned. Declining, or just flying away, costs nothing either." data-ko="몬스터가 옆으로 날아와 내기를 걸 때가 있습니다. 받는 데 돈이 들지 않고 오직 운으로 정해집니다. 아래 확률로 한 번 돌고, 옮겨지는 코인의 5%는 소각됩니다. 거절하거나 그냥 날아가도 잃는 것은 없습니다.">.</p>
+      <table class="odds" id="guideOdds"></table>
+      <p data-en="If you carry nothing, the two outcomes where it takes from you move nothing." data-ko="든 코인이 없으면 몬스터가 가져가는 두 결과에서는 아무것도 움직이지 않습니다.">.</p>
+    </details>
+    <details>
+      <summary data-en="Events, the shop, quests and rank" data-ko="이벤트, 상점, 퀘스트, 등급">Events, the shop, quests and rank</summary>
+      <p data-en="Every minute or two an event is marked on the map: a ring storm (rings worth 2 RF each over one island, 40 seconds) or a treasure (10 RF on a summit, 45 seconds, first rider there). The Roost shop sells three one-flight items, paid from your purse and burned: ring magnet 5 RF, insurance 10 RF, head start 5 RF. Three quests a day pay rank points; so do rings, fights and dares won, and profit landed at the Roost. Rank stays between flights and is never RF." data-ko="1~2분마다 지도에 이벤트가 표시됩니다. 링 폭풍(섬 하나 위에 2 RF짜리 링, 40초) 또는 보물(섬 꼭대기에 10 RF, 45초, 먼저 닿는 라이더의 것)입니다. 둥지 상점은 한 번의 비행에 쓰는 아이템 세 가지를 팔고, 값은 지갑에서 나가 소각됩니다. 링 자석 5 RF, 보험 10 RF, 빠른 출발 5 RF. 매일 퀘스트 세 개가 등급 점수를 주고, 링, 이긴 싸움과 내기, 둥지에 챙긴 이익도 점수가 됩니다. 등급은 비행이 끝나도 남고 RF가 아닙니다.">.</p>
+    </details>
+    <details>
+      <summary data-en="Flying with others" data-ko="함께 날기">Flying with others</summary>
+      <p data-en="Create a sky and send the six-letter code or the invite link. Up to eight players fly in one sky, each on their own device, among the computer riders. A shared sky never pauses. Leaving in the middle of a fight is a forfeit. If the player who created the sky leaves, it closes and everyone lands with what they carry." data-ko="하늘을 만들고 여섯 글자 코드나 초대 링크를 보내세요. 한 하늘에 최대 8명이 각자 기기로 컴퓨터 라이더 사이를 납니다. 함께 나는 하늘은 멈추지 않습니다. 싸움 도중에 나가면 기권패입니다. 하늘을 만든 사람이 나가면 하늘이 닫히고, 모두 든 코인을 챙겨 내립니다.">.</p>
+    </details>
+  </div>
+  <div class="gFoot"><button class="primary" id="guideClose" type="button" data-en="Got it" data-ko="알겠어요">.</button></div>
+</dialog>
+
+<dialog id="log" class="dlg">
+  <div class="gHead"><h2 data-en="Fight record" data-ko="싸움 기록">Fight record</h2></div>
+  <div class="gBody" id="logBody"></div>
+  <div class="gFoot"><button class="primary" id="logClose" type="button" data-en="Close" data-ko="닫기">Close</button></div>
+</dialog>
+
+<!-- Only a shared sky needs this. If it cannot load, flying alone works the same. -->
+<script async src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script type="module">import "./js/game.js";</script>
+</body>
+</html>

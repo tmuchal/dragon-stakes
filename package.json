@@ -1,0 +1,7 @@
+{
+  "name": "dragon-stakes",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "python3 -m http.server 8827", "rules": "node scripts/검산.mjs" },
+  "devDependencies": { "playwright": "^1.63.0" }
+}
