@@ -10,6 +10,7 @@ import { View } from "./view.js";
 import { dragonThumbs } from "./dragons.js";
 import { SPB, Band } from "./rhythm.js";
 import { Net, netReady, HOST } from "./net.js";
+import { cleanHandle, intentUrl, siteUrl, PROJECT, xStatus, xMe, xLogout, xVerify } from "./xlink.js";
 
 const params = new URLSearchParams(location.search);
 const TOUCH = matchMedia("(pointer: coarse)").matches || params.has("touch");
@@ -95,6 +96,11 @@ const TEXT = {
     coach1_t: "Fly through a gold ring. Each pays 1 RF from the sky's pool.", coach2_t: "White rings over an island are rising air. Fly in for a free lift.", getCallMe_t: "Your turn! Tap any rhythm",
     getEchoMe_t: "Your turn! Tap to echo this rhythm", callNow_t: "tap any rhythm, every tap counts", echoNow_t: "tap to echo it now", quitBank: "Land now · bank {n} RF",
     quitAway: "Leave now: keep {k} RF, {b} RF goes back to the sky", sAway: "You left away from the Roost: you keep {n} RF, and {b} RF went back to the sky.", watch: "watch",
+    bTook: "I took {n} RF out of the sky in Dragon Stakes 🐉", bEven: "I came home even from the sky in Dragon Stakes 🐉", bLeft: "I left {n} RF in the sky in Dragon Stakes 🐉", bOut: "I lost my whole stake in Dragon Stakes 🐉 Revenge next flight.",
+    bFree: "I rode a dragon through the sky in Dragon Stakes 🐉", bWins: "{w} fights won.", bWin1: "1 fight won.", bTail: "Flying as @{h} with a @{p} Friend. Beat me:", bTail0: "Flying with a @{p} Friend. Beat me:",
+    mFight: "I just took {n} RF from {who} in Dragon Stakes 🐉", mCrown: "I just took {n} RF from the crowned rider in Dragon Stakes 🐉", mJack: "Jackpot! I took the {who}'s whole hoard, {n} RF, in Dragon Stakes 🐉",
+    tWon: "+{n} RF from {who}", tJack: "Jackpot +{n} RF", share: "Share", inviteText: "Fly with me in Dragon Stakes 🐉 Sky code {code}, a sky full of @{p} Friends. Join here:",
+    xOk: "Connected as @{h}", xNo: "X sign-in was cancelled.", xErr: "Could not sign in with X just now. A typed handle works the same in the game.", xLeft: "Disconnected from X.",
   },
   ko: {
     ember: "불꽃 드레이크", emberT: "균형형. 기본에 충실", wyvern: "서리 와이번", wyvernT: "급강하가 가장 빠름", lung: "폭풍 용", lungT: "선회가 가장 빠르고 가장 빨리 오름", bone: "해골 와이엄", boneT: "싸움 뒤 보호막 14초", gold: "황금 수집가", goldT: "링 하나에 2 RF. 느림", jade: "비취 깃털뱀",
@@ -141,6 +147,11 @@ const TEXT = {
     loadFail: "지금은 Robinhood Chain을 읽지 못했습니다. 다시 해 보세요.", nameLabel: "내 이름 (16자까지)", coach1_t: "금색 링을 통과해 보세요. 하나에 1 RF입니다.", coach2_t: "섬 위 흰 고리는 상승 기류. 들어가면 공짜로 떠오릅니다.", getCallMe_t: "내 차례! 아무 리듬이나 탭하세요",
     getEchoMe_t: "내 차례! 탭해서 이 리듬을 따라 치세요", callNow_t: "아무 때나 탭하세요, 치는 대로 찍힙니다", echoNow_t: "지금 탭해서 따라 치세요", quitBank: "지금 내리기 · {n} RF 챙기기", quitAway: "지금 떠나기: {k} RF만 챙기고 {b} RF는 하늘로 돌아감",
     sAway: "둥지가 아닌 곳에서 떠나 {n} RF만 챙겼고, {b} RF는 하늘로 돌아갔습니다.", watch: "지켜보기",
+    bTook: "Dragon Stakes 하늘에서 {n} RF를 가져왔다 🐉", bEven: "Dragon Stakes 하늘에서 본전으로 돌아왔다 🐉", bLeft: "Dragon Stakes 하늘에 {n} RF를 두고 왔다 🐉", bOut: "Dragon Stakes에서 판돈을 몽땅 털렸다 🐉 다음 비행에 복수한다.",
+    bFree: "Dragon Stakes에서 드래곤 타고 하늘을 날았다 🐉", bWins: "싸움 {w}승.", bWin1: "싸움 1승.", bTail: "@{h}, @{p} 프렌드 타고 출격. 나를 이겨 봐:", bTail0: "@{p} 프렌드 타고 출격. 나를 이겨 봐:",
+    mFight: "Dragon Stakes에서 방금 {who}에게서 {n} RF를 뺏었다 🐉", mCrown: "Dragon Stakes에서 방금 왕관 쓴 라이더에게서 {n} RF를 뺏었다 🐉", mJack: "Dragon Stakes에서 대박! {who}의 보물 더미 {n} RF를 통째로 가져왔다 🐉",
+    tWon: "{who}에게서 +{n} RF", tJack: "대박 +{n} RF", share: "공유", inviteText: "Dragon Stakes에서 같이 날자 🐉 하늘 코드 {code}, @{p} 프렌드들이 나는 하늘. 여기로 들어와:",
+    xOk: "@{h} 계정으로 연결됨", xNo: "X 로그인을 취소했습니다.", xErr: "지금은 X로 로그인하지 못했습니다. 핸들을 직접 적어도 게임에서는 똑같이 보입니다.", xLeft: "X 연결을 끊었습니다.",
   },
 };
 // Korean particles depend on the last sound of the word before them, and here that word is a name: "{who|이}" writes
@@ -186,7 +197,12 @@ const online = () => role !== "solo";
 const IDLE = { turn: 0, climb: 0, throttle: 0 };
 const lvl = () => D?.pvp ? "club" : level;                         // two players always fight on the same terms
 const myName = () => cleanName(store.get("name", "")) || `${myFriend.family} #${myFriend.id}`;
-const nameOf = r => r === me || r?.mine ? t("you") : r?.name || `${r.f.family} #${r.f.id}`;
+// X: a handle the player typed (just text, shown as typed) or one that came back from signing in with X (xUser, checked
+// by this site's server). Only a checked one gets the X mark, and only the host decides whether a guest's is checked.
+let xOn = false, xUser = null;
+const myHandle = () => xUser?.username || cleanHandle(store.get("xh", ""));
+const nameOf = r => r === me || r?.mine ? t("you") : r?.xh ? "@" + r.xh : r?.name || `${r.f.family} #${r.f.id}`;
+const XMARK = '<i class="xm" title="Signed in with X"></i>';
 const fights = r => r ? r.fights.filter(f => !f.dare) : [];
 // Song time as the player hears it: the device's own sound delay (large on wireless headphones) is taken off.
 const heardLag = () => clamp(band.ctx?.outputLatency || 0, 0, 0.4);
@@ -204,6 +220,7 @@ if (params.has("test")) window.__sky = () => ({
   record: (me ? run : lastRun)?.fights.map(f => f.dare ? { dare: true, k: f.k, dir: f.dir, amount: f.amount, burn: f.burn, gain: f.gain, result: f.result } : { fid: f.fid, pvp: f.pvp, ids: f.ids, hits: f.hits, result: f.result, amount: f.amount, burn: f.burn, gain: f.gain, crown: !!f.crown, share: f.share, forfeit: !!f.forfeit }) ?? [],
   home: lastRun?.home ?? null, why: lastRun?.why ?? null, run: (me ? run : lastRun) && (({ start, rings, rp, quests, best, shop }) => ({ start, rings, rp, quests, best, shop }))(me ? run : lastRun),
   rp: rp(), rank: rankOf(rp()), quests: quests().list, coach, burnt: store.get("burnt", 0), stake, items, away: world.riders.filter(r => r.away).map(r => r.id),
+  x: { handle: myHandle(), connected: !!xUser, on: xOn, marks: Object.fromEntries(world.riders.filter(r => r.human).map(r => [r.id, { xh: r.xh || "", ok: !!r.xok }])) },
 });
 
 if (params.has("test")) { window.__poke = fn => fn(world, me); window.__net = () => NET; }   // test hooks: a check can put riders where it needs them, and cut its own link
@@ -345,12 +362,12 @@ onTap($("promptNo"), () => waveOff());
 async function takeOff() {
   band.ensure(); fitPurse();
   if (role === "guest") {   // the host puts my dragon in its sky and answers with "go"; the stake leaves the purse then
-    if (!going && NET?.connected) { going = true; setTimeout(() => going = false, 4000); NET.toHost({ type: "up", f: packFriend(myFriend), kind: myKind, stake, items, name: myName(), rank: rankOf(rp()) }); }
+    if (!going && NET?.connected) { going = true; setTimeout(() => going = false, 4000); NET.toHost({ type: "up", f: packFriend(myFriend), kind: myKind, stake, items, name: myName(), rank: rankOf(rp()), ...xOut() }); }
     return;
   }
   for (const r of world.riders.filter(x => x.mine)) world.leave(r);
   clearFriend(myFriend);
-  me = world.addRider(myFriend, stake, true, myKind, items); me.mine = true; me.name = myName(); me.rank = rankOf(rp());
+  me = world.addRider(myFriend, stake, true, myKind, items); me.mine = true; me.name = myName(); me.rank = rankOf(rp()); me.xh = myHandle(); me.xok = !!xUser;
   const cost = charge(stake, me.items);
   if (role === "host") { NET.cast({ type: "add", r: [row(me)] }); sendPeople(); }
   else t0 = band.now;                                              // a shared sky keeps one song clock from the moment it opens
@@ -401,6 +418,7 @@ function landed(why, by, home) {
   const rows = [["stStart", `${fmt(run.start)} RF`, run.start], ["stRings", pm(run.rings, "+"), run.rings], ["stWon", run.won, run.won], ["stLost", run.lost, run.lost], ["stDraw", run.draws, run.draws], ["stBest", run.best, run.best >= 2], ["stTaken", pm(run.taken, "+"), run.taken], ["stGiven", pm(run.given, "−"), run.given],
     ["stDare", `${pm(run.dareWon, "+")} / ${pm(run.dareLost, "−")}`, run.dareWon || run.dareLost], ["stBurn", `${fmt(run.burned)} RF`, run.burned], ["stShop", `${fmt(run.shop)} RF`, run.shop], ["stHome", `${fmt(home)} RF`, true], ["stPool", `${fmt(lastRun.pool)} RF`, true], ["stPurse", `${fmt(purse())} RF`, true]];
   $("resStats").innerHTML = rows.filter(r => r[2]).map(([k, v]) => `<dt>${t(k)}</dt><dd>${v}</dd>`).join("");
+  renderShare();
   if (why === "bank" && net > 0) band.goal(); else band.bell();
   renderSetup(); $("againBtn").focus();
 }
@@ -526,6 +544,7 @@ function showResult(w, out, why = "") {
   setTimeout(() => {
     if (me !== mine || D !== d) return;
     D = null; $("duel").hidden = true; $("laneWrap").classList.remove("on"); $("tags").hidden = false; $("hint").innerHTML = t(online() ? "hintSky" : "hint");
+    if (rec.result === "won" && out.gain > 0) shareToast(t("tWon", { n: fmt(out.gain), who }), t(out.crown && !out.insured ? "mCrown" : "mFight", { n: fmt(out.gain), who: plainAt(who) }));
     if (me.stake < 1 && run.start > 0 && rec.result === "lost") land("out", who);   // only a rider who brought a stake can be knocked out; a free flyer robbed back to nothing keeps flying
   }, 1700);
 }
@@ -650,6 +669,7 @@ function startWheel(e) {   // e: { kind, k, dir, amount, burn, gain, hoard0, car
     setTimeout(() => {
       if (wheel !== w) return;
       wheel = null; $("wheel").hidden = true;
+      if (e.k === 0 && e.dir > 0 && me) shareToast(t("tJack", { n: fmt(e.gain) }), t("mJack", { n: fmt(e.gain), who }));   // a jackpot is worth telling
       if (me && me.stake < 1 && run.start > 0 && e.dir < 0) land("out", { dare: who });   // only a rider who brought a stake can be knocked out
     }, 2100);
   }, SPIN_SECS * 1000);
@@ -664,12 +684,18 @@ function say(big, sub = "", tone = "", ms = 1300) {
 }
 const heldToasts = [];
 // During a fight nothing is laid over the board: what matters afterwards (gold) waits until the fight is over.
-function toast(text, cls = "", now = false) {
-  if (D && !now) { if (cls === "gold") heldToasts.push([text, cls]); return; }
+function toast(text, cls = "", now = false, link = null) {
+  if (D && !now) { if (cls === "gold") heldToasts.push([text, cls, false, link]); return; }
   const el = document.createElement("div"); el.className = "toast " + cls; el.textContent = text;
+  if (link) { const a = Object.assign(document.createElement("a"), { className: "xshare", href: link, target: "_blank", rel: "noopener", textContent: t("share") }); el.append(" ", a); el.classList.add("long"); }
   const box = $("toasts"); box.append(el); while (box.children.length > 4) box.firstChild.remove();
-  setTimeout(() => el.remove(), 5000);
+  setTimeout(() => el.remove(), link ? 8000 : 5000);
 }
+// A moment worth posting: a line in the corner with a small "Share" link to X's post page. It waits out a fight like any gold toast.
+const shareToast = (text, post) => toast(text, "gold", false, intentUrl(`${post}\n${xTail()}`, siteUrl()));
+// The words after every post: who is playing, and the project, named once.
+function xTail() { const h = myHandle(); return h && h.toLowerCase() !== PROJECT.toLowerCase() ? t("bTail", { h, p: PROJECT }) : t("bTail0", { p: PROJECT }); }
+const plainAt = s => String(s).replace(new RegExp("@" + PROJECT, "ig"), PROJECT);   // a rider named after the project is not a second mention of it
 function bump() { const el = document.querySelector(".card.mine"); el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); }
 const setText = (id, v) => { const el = $(id); if (el.textContent !== v) el.textContent = v; };
 // A world event begins: said once to everyone, and it stays on the map and in the countdown until it ends.
@@ -700,10 +726,13 @@ function hud(dt) {
   if (run.head && !(me.shield > 0 && fights(run).length === 0)) run.head = false;
   const ev = world.event, evText = ev ? `${t(ev.type === "storm" ? "evStorm" : "evPrize")} · ${t("secs", { n: Math.max(0, Math.ceil(ev.until - world.t)) })}` : world.pool < 1 ? t("poolOut") : "";
   const chips = (evText ? `<i class="ev ${ev ? "" : "spent"}">${evText}</i>` : "") + (me.crowned ? `<i class="gold">♛ ${t("crownChip")}</i>` : "") + (me.streak >= 2 ? `<i class="hot">${t("streak", { n: me.streak })}</i>` : "") + (me.magnet ? `<i>${t("i_magnet")}</i>` : "") + (me.insured ? `<i>${t("i_insure")}</i>` : "") + (run.head ? `<i>${t("i_start")} ${t("secs", { n: Math.ceil(me.shield) })}</i>` : "");
-  if (!!D !== hudFight) { hudFight = !!D; $("hud").classList.toggle("fight", hudFight); if (!hudFight) for (const [text, cls] of heldToasts.splice(0)) toast(text, cls); }
+  if (!!D !== hudFight) { hudFight = !!D; $("hud").classList.toggle("fight", hudFight); if (!hudFight) for (const [text, cls, , link] of heldToasts.splice(0)) toast(text, cls, false, link); }
   if (chips !== chipsShown) { chipsShown = chips; $("chips").innerHTML = chips; }
   // name tags over the other riders: what they carry is what you can take
   const alive = new Set();
+  const mine = myHandle(), selfTag = tags.get("self") || (() => { const el = document.createElement("div"); el.className = "tag self"; el.innerHTML = "<span></span>"; $("tags").append(el); tags.set("self", el); return el; })();
+  const sp = mine && view.tag(me); alive.add("self"); selfTag.hidden = !sp;   // my own handle over my own dragon, when I gave one
+  if (sp) { selfTag.style.transform = `translate(${sp.x.toFixed(1)}px, ${sp.y.toFixed(1)}px)`; if (selfTag.firstChild.textContent !== "@" + mine) selfTag.firstChild.textContent = "@" + mine; selfTag.classList.toggle("xok", !!xUser); }
   for (const r of world.riders) {
     if (r === me) continue; alive.add(r.id);
     let el = tags.get(r.id); if (!el) { el = document.createElement("div"); el.className = r.human ? "tag human" : "tag"; el.innerHTML = "<b></b><span></span>"; $("tags").append(el); tags.set(r.id, el); }
@@ -711,7 +740,7 @@ function hud(dt) {
     el.hidden = false; el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px)`;
     const txt = `${fmt(r.stake)} RF${r.streak >= 2 ? ` ×${r.streak}` : ""}`, name = nameOf(r) + (r.human && r.rank != null ? ` · ${t("rank" + r.rank)}` : "");
     if (el.firstChild.textContent !== txt) el.firstChild.textContent = txt; if (el.lastChild.textContent !== name) el.lastChild.textContent = name;
-    el.classList.toggle("hunt", r.goal?.rider === me); el.classList.toggle("top", !!r.crowned); el.classList.toggle("far", p.d > 190); el.classList.toggle("away", !!r.away);
+    el.classList.toggle("hunt", r.goal?.rider === me); el.classList.toggle("top", !!r.crowned); el.classList.toggle("xok", !!(r.xh && r.xok)); el.classList.toggle("far", p.d > 190); el.classList.toggle("away", !!r.away);
   }
   // monsters: their hoard, and what they say when they fly up to someone
   for (const m of world.monsters) {
@@ -749,7 +778,8 @@ function hud(dt) {
     boardAt = performance.now() + 500;
     const list = [...world.riders].sort((a, b) => b.stake - a.stake), rows = list.slice(0, 5); if (!rows.includes(me)) rows.push(me);
     setText("boardK", t("boardK", { n: fmt(world.carried) }));
-    $("board").innerHTML = rows.map(r => `<li class="${r === me ? "me" : r.human ? "human" : ""}"><span>${list.indexOf(r) + 1}. ${r.crowned ? "♛ " : ""}${nameOf(r)}${r.streak >= 2 ? ` ×${r.streak}` : ""}</span><b>${fmt(r.stake)}</b></li>`).join("");
+    const who = r => r === me && mine ? `@${mine}${xUser ? XMARK : ""}` : nameOf(r) + (r !== me && r.xh && r.xok ? XMARK : "");   // a handle in place of "You" when I gave one
+    $("board").innerHTML = rows.map(r => `<li class="${r === me ? "me" : r.human ? "human" : ""}"><span>${list.indexOf(r) + 1}. ${r.crowned ? "♛ " : ""}${who(r)}${r.streak >= 2 ? ` ×${r.streak}` : ""}</span><b>${fmt(r.stake)}</b></li>`).join("");
     drawMap();
   }
 }
@@ -868,8 +898,19 @@ for (const id of ["guideBtn", "guideBtn2"]) $(id).addEventListener("click", () =
 $("guideClose").addEventListener("click", () => $("guide").close());
 $("againBtn").addEventListener("click", () => takeOff());
 $("homeBtn").addEventListener("click", () => { $("result").hidden = true; $("club").hidden = false; renderSetup(); $("goBtn").focus(); });
+// The result as a post on X: what was taken, fights won, who is playing. In the language on screen.
+function bragText(r) {
+  const net = r.home - r.start, head = r.why === "out" ? t("bOut") : net > 0 ? t("bTook", { n: fmt(net) }) : net < 0 ? t("bLeft", { n: fmt(-net) }) : r.home > 0 ? t("bEven") : t("bFree");
+  return `${head}${r.won ? " " + t(r.won === 1 ? "bWin1" : "bWins", { w: r.won }) : ""}\n${xTail()}`;
+}
+function renderShare() {
+  if (!lastRun) return;
+  $("shareBtn").href = intentUrl(bragText(lastRun), siteUrl());
+  const h = myHandle(); $("resWho").hidden = !h; $("resX").textContent = h ? "@" + h : ""; $("resX").classList.toggle("xok", !!xUser);
+  $("resAva").hidden = !xUser?.pic; if (xUser?.pic && $("resAva").getAttribute("src") !== xUser.pic) $("resAva").src = xUser.pic;
+}
 $("copyBtn").addEventListener("click", async () => {
-  const r = lastRun, text = t("copyText", { k: t(myKind), s: fmt(r.start), n: fmt(r.home), w: r.won, l: r.lost, d: r.draws, x: r.fights.length - fights(r).length, f: `${myFriend.family} #${myFriend.id}` });
+  const r = lastRun, text = `${t("copyText", { k: t(myKind), s: fmt(r.start), n: fmt(r.home), w: r.won, l: r.lost, d: r.draws, x: r.fights.length - fights(r).length, f: `${myFriend.family} #${myFriend.id}` })}\n${siteUrl()}`;
   try { await navigator.clipboard.writeText(text); $("copyBtn").textContent = t("copied"); } catch { $("copyBtn").textContent = t("copyFail"); }
   setTimeout(applyLang, 1600);
 });
@@ -913,7 +954,9 @@ function friendOf(v) {   // a Friend named by another device: one we know by its
   return pool[0];
 }
 const rankIn = v => Number.isInteger(v) && v >= 0 && v < RANK_AT.length ? v : null;
-const row = r => ({ id: r.id, f: packFriend(r.f), kind: r.kind, human: r.human, name: r.human ? r.name : null, rank: r.human ? r.rank ?? null : null, skill: r.skill, stake: r.stake, x: r.x, y: r.y, z: r.z, yaw: r.yaw });
+const row = r => ({ id: r.id, f: packFriend(r.f), kind: r.kind, human: r.human, name: r.human ? r.name : null, rank: r.human ? r.rank ?? null : null, skill: r.skill, stake: r.stake, x: r.x, y: r.y, z: r.z, yaw: r.yaw, xh: r.human ? r.xh || "" : "", xok: !!(r.human && r.xok) });
+// What a player says about X with its name: the handle it typed or signed in with, and the signed badge if it signed in.
+const xOut = () => ({ xh: myHandle(), xb: xUser?.badge || "" });
 const rd = (v, k = 10) => Math.round(v * k) / k;
 const MSTATE = ["roam", "taunt", "dare", "spin", "flee"], EVS = ["storm", "prize"];
 const songFor = pid => songT() + NET.rtt(pid) / 2000;             // my song time as it will be when the message lands there
@@ -946,7 +989,7 @@ function sceneryExtras() {
 // ----- host -----
 function sendPeople() {
   if (role !== "host") return;
-  people = [{ pid: NET.id, name: myName(), host: true, stake: me ? me.stake : null }, ...[...crowd].map(([pid, p]) => ({ pid, name: p.name, stake: p.rider ? p.rider.stake : null }))];
+  people = [{ pid: NET.id, name: myName(), xh: myHandle(), xok: !!xUser, host: true, stake: me ? me.stake : null }, ...[...crowd].map(([pid, p]) => ({ pid, name: p.name, xh: p.xh || "", xok: !!p.xok, stake: p.rider ? p.rider.stake : null }))];
   NET.cast({ type: "people", list: people });
   if (!$("club").hidden) renderSky();
 }
@@ -1036,15 +1079,16 @@ function hostMsg(pid, m) {
   const r = p.rider;
   switch (m.type) {
     case "hi":
-      p.name = cleanName(m.name) || p.name;
+      p.name = cleanName(m.name) || p.name; xIn(pid, p, m);
       NET.send(pid, { type: "room", seed: world.seedHex, t: world.t, r: world.riders.map(row), pool: world.pool, song: songFor(pid) }); sendPeople(); break;
-    case "name": p.name = cleanName(m.name) || p.name; if (r) r.name = p.name; sendPeople(); break;
+    case "name": p.name = cleanName(m.name) || p.name; if (r) r.name = p.name; xIn(pid, p, m); sendPeople(); break;
     case "up": {
       if (r) break;
       const f = friendOf(m.f), st = STAKES.includes(m.stake) ? m.stake : 0;   // the stake is one of those on offer, whatever the message says
       p.name = cleanName(m.name) || `${f.family} #${f.id}`;
       clearFriend(f);
-      const x = p.rider = world.addRider(f, st, true, KINDS.includes(m.kind) ? m.kind : "ember", m.items); x.remote = pid; x.name = p.name; x.rank = rankIn(m.rank); p.poseAt = performance.now();   // addRider keeps only the three items the shop sells
+      xIn(pid, p, m);
+      const x = p.rider = world.addRider(f, st, true, KINDS.includes(m.kind) ? m.kind : "ember", m.items); x.remote = pid; x.name = p.name; x.rank = rankIn(m.rank); x.xh = p.xh; x.xok = p.xok; p.poseAt = performance.now();   // addRider keeps only the three items the shop sells
       NET.cast({ type: "add", r: [row(x)] });
       NET.send(pid, { type: "go", id: x.id, stake: st, items: x.items, shield: x.shield, song: songFor(pid) });
       if (me) toast(t("join", { who: x.name, n: fmt(st) })); sendPeople(); break;
@@ -1078,6 +1122,16 @@ function hostMsg(pid, m) {
     }
   }
 }
+// A guest's X handle is cleaned like a name. Its X mark is only believed once this site's server has checked the signed
+// badge that came with it, and only for the handle the badge was signed for; a typed handle is shown as typed, unmarked.
+function xIn(pid, p, m) {
+  const h = cleanHandle(m.xh), was = `${p.xh}|${p.xok}`;
+  if (h !== p.xh) { p.xh = h; p.xok = false; }
+  const badge = typeof m.xb === "string" ? m.xb : "";
+  if (h && badge && xOn && badge !== p.xb) { p.xb = badge; xVerify(badge).then(u => { if (crowd.get(pid) !== p || p.xh !== h || u.toLowerCase() !== h.toLowerCase()) return; p.xok = true; xWho(p); }); }
+  if (`${p.xh}|${p.xok}` !== was) xWho(p);
+}
+function xWho(p) { if (p.rider) { p.rider.xh = p.xh; p.rider.xok = p.xok; NET?.cast({ type: "who", id: p.rider.id, xh: p.xh, xok: p.xok }); } sendPeople(); }
 function hostLeave(pid) {
   const p = crowd.get(pid); if (!p) return; crowd.delete(pid);
   if (p.rider) { world.leave(p.rider, true); if (me) toast(t("leftSky", { who: p.name })); }   // in the middle of a fight this is a forfeit: see World.leave
@@ -1096,7 +1150,7 @@ function buildSky(seed) {
 function addRows(rows, quiet = false) {
   for (const d of Array.isArray(rows) ? rows : []) {
     if (byId.has(d.id)) continue;
-    const r = { id: d.id, f: friendOf(d.f), human: !!d.human, name: d.human ? cleanName(d.name) || null : null, rank: d.human ? rankIn(d.rank) : null, kind: KINDS.includes(d.kind) ? d.kind : "ember", skill: Number(d.skill) || 0.5, stake: Number(d.stake) || 0,
+    const r = { id: d.id, f: friendOf(d.f), human: !!d.human, name: d.human ? cleanName(d.name) || null : null, rank: d.human ? rankIn(d.rank) : null, xh: d.human ? cleanHandle(d.xh) : "", xok: !!(d.human && d.xok && cleanHandle(d.xh)), kind: KINDS.includes(d.kind) ? d.kind : "ember", skill: Number(d.skill) || 0.5, stake: Number(d.stake) || 0,
       x: Number(d.x) || 0, y: Number(d.y) || 60, z: Number(d.z) || 0, yaw: Number(d.yaw) || 0, pitch: 0, roll: 0, speed: 30, flap: 0, gliding: false, state: "fly", shield: 0, edge: false, lift: false, goal: null, net: null,
       streak: 0, crowned: false, insured: false, magnet: false, away: false, items: [] };
     byId.set(r.id, r); world.riders.push(r);
@@ -1182,7 +1236,8 @@ function guestMsg(m) {
   }
   if (role !== "guest") return;
   switch (m.type) {
-    case "people": people = Array.isArray(m.list) ? m.list.slice(0, 8).map(p => ({ pid: p.pid, name: cleanName(p.name), host: !!p.host, stake: p.stake == null ? null : Number(p.stake) })) : []; if (!$("club").hidden) renderSky(); break;
+    case "people": people = Array.isArray(m.list) ? m.list.slice(0, 8).map(p => ({ pid: p.pid, name: cleanName(p.name), xh: cleanHandle(p.xh), xok: !!p.xok && !!cleanHandle(p.xh), host: !!p.host, stake: p.stake == null ? null : Number(p.stake) })) : []; if (!$("club").hidden) renderSky(); break;
+    case "who": { const r = byId.get(m.id); if (r && r.human) { r.xh = cleanHandle(m.xh); r.xok = !!m.xok && !!r.xh; } break; }
     case "add": addRows(m.r); break;
     case "s": mirror(m); break;
     case "go": {
@@ -1240,7 +1295,7 @@ async function joinSky(code) {
   note("skyJoining", { code }); renderSetup(); resNote(); band.ensure();
   if (!await netLoaded()) { note("skyOff"); renderSetup(); resNote(); return; }
   const net = NET = makeNet();
-  try { await net.join(code); if (NET === net) net.toHost({ type: "hi", name: myName() }); }
+  try { await net.join(code); if (NET === net) net.toHost({ type: "hi", name: myName(), ...xOut() }); }
   catch { /* the status handler has put the reason on screen */ }
 }
 // Back to a sky of my own. A host closes its sky for everyone; a guest is landed with what it carries.
@@ -1272,13 +1327,13 @@ function renderSky() {
   document.querySelectorAll("#skySeg button").forEach(b => b.classList.toggle("on", b.dataset.v === skyTab));
   $("skyBox").hidden = skyTab === "alone" && !skyNote;
   $("skyHost").hidden = role !== "host"; $("skyJoin").hidden = skyTab !== "join" || role === "guest";
-  if (role === "host") $("skyCodeOut").textContent = NET.code;
+  if (role === "host") { $("skyCodeOut").textContent = NET.code; $("skyShare").href = intentUrl(t("inviteText", { code: NET.code, p: PROJECT }), inviteLink()); }
   $("skyMsg").textContent = skyNote ? t(...skyNote) : "";
   const again = lastSky && role === "solo" && !NET;
   for (const id of ["skyRejoin", "rejoinBtn"]) { $(id).hidden = !again; if (again) $(id).textContent = t("rejoin", { code: lastSky }); }
   const mine = NET?.id;
   $("skyList").hidden = !online();
-  $("skyList").innerHTML = people.map(p => `<li class="${p.pid === mine ? "me" : ""}"><b>${p.name}</b>${p.pid === mine ? ` <i>${t("pYou")}</i>` : ""}${p.host ? ` <i>${t("pHost")}</i>` : ""}<span>${p.stake == null ? t("pGround") : t("pFlying", { n: fmt(p.stake) })}</span></li>`).join("");
+  $("skyList").innerHTML = people.map(p => `<li class="${p.pid === mine ? "me" : ""}"><b>${p.xh ? "@" + p.xh : p.name}${p.xh && p.xok ? XMARK : ""}</b>${p.pid === mine ? ` <i>${t("pYou")}</i>` : ""}${p.host ? ` <i>${t("pHost")}</i>` : ""}<span>${p.stake == null ? t("pGround") : t("pFlying", { n: fmt(p.stake) })}</span></li>`).join("");
 }
 $("skySeg").addEventListener("click", e => {
   const v = e.target.closest("button")?.dataset.v; if (!v || v === skyTab && (v !== "create" || role === "host")) return;
@@ -1289,14 +1344,41 @@ $("skySeg").addEventListener("click", e => {
 $("skyJoinBtn").addEventListener("click", () => joinSky($("skyCode").value));
 $("skyCode").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); joinSky($("skyCode").value); } });
 for (const id of ["skyRejoin", "rejoinBtn"]) $(id).addEventListener("click", () => { if (lastSky) joinSky(lastSky); });
+const inviteLink = () => `${siteUrl()}?room=${NET?.code || ""}`;   // the real game's address when this copy is not served over https, so the link works for whoever gets it
 $("skyCopy").addEventListener("click", async () => {
-  const link = `${location.origin}${location.pathname}?room=${NET?.code || ""}`;
+  const link = inviteLink();
   try { await navigator.clipboard.writeText(link); note("linkCopied"); } catch { note("copyFail"); }
   renderSky();
 });
 $("nameIn").addEventListener("input", () => {
   store.set("name", cleanName($("nameIn").value));
-  if (role === "host") { if (me) me.name = myName(); sendPeople(); } else if (role === "guest") NET.toHost({ type: "name", name: myName() });
+  if (role === "host") { if (me) me.name = myName(); sendPeople(); } else if (role === "guest") NET.toHost({ type: "name", name: myName(), ...xOut() });
+});
+// The X handle: typed by the player, or filled in by signing in with X. Anything that is not a valid X username is
+// quietly not used (the field only turns a soft red), and a typed handle never gets the X mark.
+$("xIn").addEventListener("input", () => {
+  if (xUser) return;
+  const raw = $("xIn").value.trim(), h = cleanHandle(raw);
+  store.set("xh", h); $("xIn").toggleAttribute("aria-invalid", !!raw && !h);
+  xSent();
+});
+function xSent() {   // tell the sky my handle changed, the same way a name change is told
+  if (role === "host") { if (me) { me.xh = myHandle(); me.xok = !!xUser; } sendPeople(); } else if (role === "guest") NET.toHost({ type: "name", name: myName(), ...xOut() });
+}
+function renderX() {
+  const h = myHandle();
+  if (document.activeElement !== $("xIn") || xUser) $("xIn").value = h;
+  $("xIn").readOnly = !!xUser; $("xIn").toggleAttribute("aria-invalid", false);
+  $("xConn").hidden = !xOn; $("xBtn").hidden = !!xUser || online(); $("xOff").hidden = !xUser;   // signing in leaves the page, so not from inside a shared sky
+  $("xAt").classList.toggle("xok", !!xUser);
+  $("xAva").hidden = !xUser?.pic; if (xUser?.pic && $("xAva").getAttribute("src") !== xUser.pic) $("xAva").src = xUser.pic;
+  $("xMsg").textContent = xNote ? t(...xNote) : ""; $("xMsg").hidden = !xNote;
+}
+let xNote = null;
+$("xAva").addEventListener("error", () => { $("xAva").hidden = true; $("resAva").hidden = true; });
+$("resAva").addEventListener("error", () => { $("resAva").hidden = true; });
+$("xOff").addEventListener("click", async () => {
+  await xLogout(); xUser = null; xNote = ["xLeft"]; renderX(); xSent();
 });
 
 // ---------- the loop ----------
@@ -1341,9 +1423,9 @@ function applyLang() {
   if (!$("hud").hidden) $("hint").innerHTML = t(dueling() ? "hintDuel" : online() ? "hintSky" : "hint");
   if ($("guide").open) $("guideOdds").innerHTML = oddsRows();
   shown = chipsShown = ""; coachShown = -1; boardAt = 0; renderSetup(); resNote();
-  if (lastRun && !$("result").hidden) $("resRank").innerHTML = rankHtml(lastRun.rp, lastRun.rankUp);
+  if (lastRun && !$("result").hidden) { $("resRank").innerHTML = rankHtml(lastRun.rp, lastRun.rankUp); renderShare(); }
 }
-function pickFriend(f) { myFriend = f; store.set("friend", packFriend(f)); renderSetup(); if (role === "host") sendPeople(); else if (role === "guest") NET.toHost({ type: "name", name: myName() }); }
+function pickFriend(f) { myFriend = f; store.set("friend", packFriend(f)); renderSetup(); if (role === "host") sendPeople(); else if (role === "guest") NET.toHost({ type: "name", name: myName(), ...xOut() }); }
 function renderSetup() {
   fitPurse();
   const list = myFriend && !pool.some(f => f.id === myFriend.id) ? [myFriend, ...pool.slice(0, 7)] : pool, el = $("pick");
@@ -1370,7 +1452,7 @@ function renderSetup() {
   const need = skyTab !== "alone" && !online();                    // a sky has to be open or joined before taking off into it
   $("goBtn").disabled = need; $("goMain").textContent = t("goMain");
   $("goSub").textContent = need ? t("goNeed") : [stake ? t("goCost", { s: fmt(stake) }) : t(cost ? "goFreeShop" : "goFree"), cost ? t("goItems", { i: fmt(cost) }) : ""].filter(Boolean).join(" + ");
-  renderSky();
+  renderSky(); renderX();
 }
 $("dragons").addEventListener("click", e => { const v = e.target.closest("button")?.dataset.v; if (v) { myKind = v; store.set("dragon", v); renderSetup(); } });
 $("stakeSeg").addEventListener("click", e => { const b = e.target.closest("button"); if (b && !b.disabled) { stake = Number(b.dataset.v); store.set("stake", stake); renderSetup(); store.set("items", items); } });
@@ -1389,6 +1471,17 @@ $("loadBtn").addEventListener("click", async () => {
 });
 $("loadId").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("loadBtn").click(); } });
 
+// Connect X: only when this site's api/x says it has keys. Coming back from X, the page address ends in #x=ok, #x=no
+// or #x=err; the profile itself is read from the server, never from the address.
+async function xBoot() {
+  const back = (location.hash.match(/^#x=(ok|no|err)$/) || [])[1];
+  if (back) history.replaceState(null, "", location.pathname + location.search);
+  if (!await xStatus()) { if (back) { xNote = ["xErr"]; renderX(); } return; }
+  xOn = true; xUser = await xMe();
+  if (xUser) { store.set("xh", xUser.username); if (xUser.name && (back === "ok" || !cleanName(store.get("name", "")))) { store.set("name", cleanName(xUser.name)); $("nameIn").value = cleanName(xUser.name); } }
+  xNote = back === "ok" && xUser ? ["xOk", { h: xUser.username }] : back === "no" ? ["xNo"] : back ? ["xErr"] : null;
+  renderSetup(); renderShare(); xSent();
+}
 (async function boot() {
   const list = await fetch("friends.json").then(r => r.json());
   list.forEach(addFriend);
@@ -1419,6 +1512,7 @@ $("loadId").addEventListener("keydown", e => { if (e.key === "Enter") { e.preven
   $("splash").hidden = !splash; $("club").hidden = splash; (splash ? $("playBtn") : $("goBtn")).focus();
   if (room) $("skyBox").scrollIntoView({ block: "center" });
   requestAnimationFrame(frame);
+  xBoot();
   if (AUTO && params.has("go")) {   // test hooks: ?auto&go flies alone, &host opens a sky first, &room=CODE joins one and takes off when the host answers
     if (params.has("host")) { await openSky(); if (role === "host") takeOff(); }
     else if (room) joinSky(room);

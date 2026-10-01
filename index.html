@@ -32,7 +32,7 @@
 <!-- One version for every file of the game, so a returning browser never mixes old and new modules.
      The import map rewrites each module address, whoever imports it. A new module file goes in the list. -->
 <script>
-  const V = "14", MODULES = ["game", "world", "view", "view-fx", "scenery", "scenery-sites", "monsters", "dragons", "rhythm", "net", "chain"];
+  const V = "15", MODULES = ["game", "world", "view", "view-fx", "scenery", "scenery-sites", "monsters", "dragons", "rhythm", "net", "chain", "xlink"];
   const map = { imports: Object.fromEntries(MODULES.map(m => [`./js/${m}.js`, `./js/${m}.js?v=${V}`])) };
   document.head.append(Object.assign(document.createElement("script"), { type: "importmap", textContent: JSON.stringify(map) }));
   document.head.append(Object.assign(document.createElement("link"), { rel: "stylesheet", href: `style.css?v=${V}` }));
@@ -161,10 +161,14 @@
           <span class="k" data-en="Alone, or fly with friends (beta)" data-ko="혼자, 또는 친구와 함께 날기 (베타)">Fly with friends (beta)</span>
           <div class="skyRow">
             <div class="seg" id="skySeg"><button type="button" data-v="alone" data-en="Fly alone" data-ko="혼자 날기">Fly alone</button><button type="button" data-v="create" data-en="Create a sky" data-ko="하늘 만들기">Create a sky</button><button type="button" data-v="join" data-en="Join with a code" data-ko="코드로 들어가기">Join with a code</button></div>
-            <label class="nameIn"><span data-en="Your name (up to 16 letters)" data-ko="내 이름 (16자까지)">Your name</span><input id="nameIn" maxlength="16" autocomplete="off" spellcheck="false"></label>
+            <div class="who"><label class="nameIn"><span data-en="Your name (up to 16 letters)" data-ko="내 이름 (16자까지)">Your name</span><input id="nameIn" maxlength="16" autocomplete="off" spellcheck="false"></label>
+            <!-- optional and typed by hand; "Connect X" only appears when the site's api/x has keys -->
+            <label class="nameIn xIn"><span data-en="Your X handle, optional" data-ko="내 X 핸들 (선택)">Your X handle, optional</span><span class="xAt" id="xAt"><i>@</i><input id="xIn" maxlength="16" autocomplete="off" autocapitalize="off" spellcheck="false"></span></label></div>
+            <div class="xConn" id="xConn" hidden><img id="xAva" alt="" referrerpolicy="no-referrer" hidden><a class="ghost sm" id="xBtn" href="/api/x/start" data-en="Connect X" data-ko="X 연결">Connect X</a><button class="ghost sm" id="xOff" type="button" data-en="Disconnect" data-ko="연결 끊기" hidden>Disconnect</button></div>
           </div>
+          <p class="tiny" id="xMsg" hidden></p>
           <div class="skyBox" id="skyBox" hidden>
-            <div class="skyLine" id="skyHost" hidden><b class="skyCode" id="skyCodeOut"></b><button class="ghost sm" id="skyCopy" type="button" data-en="Copy invite link" data-ko="초대 링크 복사">Copy invite link</button></div>
+            <div class="skyLine" id="skyHost" hidden><b class="skyCode" id="skyCodeOut"></b><button class="ghost sm" id="skyCopy" type="button" data-en="Copy invite link" data-ko="초대 링크 복사">Copy invite link</button><a class="ghost sm xLink" id="skyShare" href="https://x.com/intent/post" target="_blank" rel="noopener" data-en="Invite on X" data-ko="X로 초대">Invite on X</a></div>
             <div class="skyLine" id="skyJoin" hidden><input id="skyCode" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Sky code"><button class="ghost sm" id="skyJoinBtn" type="button" data-en="Join" data-ko="들어가기">Join</button></div>
             <p class="tiny" data-en="The host's device keeps score. Play with people you trust." data-ko="방장 기기가 점수를 관리합니다. 믿을 수 있는 사람과 하세요.">.</p>
             <p class="tiny" id="skyMsg"></p>
@@ -195,6 +199,7 @@
 <section class="overlay" id="result" hidden>
   <div class="panel narrow">
     <span class="k" id="resKicker"></span>
+    <div class="resWho" id="resWho" hidden><img id="resAva" alt="" referrerpolicy="no-referrer" hidden><b id="resX"></b></div>
     <h1 id="resHead"></h1>
     <p class="lede" id="resSub"></p>
     <div class="rank res" id="resRank"></div>
@@ -205,6 +210,7 @@
       <button class="primary navy" id="rejoinBtn" type="button" hidden></button>
       <button class="ghost" id="logBtn3" type="button" data-en="Fight record" data-ko="싸움 기록">Fight record</button>
       <button class="ghost" id="copyBtn" type="button" data-en="Copy result" data-ko="결과 복사">Copy result</button>
+      <a class="ghost xLink" id="shareBtn" href="https://x.com/intent/post" target="_blank" rel="noopener" data-en="Share on X" data-ko="X에 공유">Share on X</a>
       <button class="ghost" id="homeBtn" type="button" data-en="Change setup" data-ko="설정 바꾸기">Change setup</button>
     </div>
   </div>

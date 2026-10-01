@@ -431,3 +431,24 @@ body.is-touch #prompt kbd, body.is-touch #promptNo kbd { display: none; }
 }
 @media (max-width: 700px) and (min-height: 501px) and (max-height: 700px) { .toast:nth-last-child(n+2) { display: none; } }   /* a short upright phone: one toast at a time */
 .tl i.late { background: #ffb15c; border-color: #b8661c; }
+
+/* X: the handle field, Connect X, the share links, and the small X mark that only a handle checked by signing in gets */
+:root { --xmark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 1227'%3E%3Cpath d='M714 519 1161 0h-106L667 451 357 0H0l468 682L0 1226h106l410-476 327 476h358L714 519Zm-145 169-47-68L144 80h163l304 436 48 68 396 567H892L569 688Z'/%3E%3C/svg%3E"); }
+.xm, .tag.xok span::after, .xAt.xok::after, #resX.xok::after, .xLink::before { content: ""; display: inline-block; width: .78em; height: .78em; margin-left: .32em; vertical-align: -.04em; background: currentColor; -webkit-mask: var(--xmark) center / contain no-repeat; mask: var(--xmark) center / contain no-repeat; }
+.xLink::before { margin: 0 .45em 0 0; }
+a.ghost { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; color: inherit; }
+.xAt { display: flex; align-items: center; width: 170px; border: 1px solid var(--line); border-radius: 10px; background: #fff; padding-left: 10px; color: var(--ink); }
+.xAt i { font-style: normal; font-weight: 700; color: var(--muted); }
+.nameIn .xAt input { border: 0; border-radius: 10px; padding: 8px 10px 8px 2px; width: 100%; min-width: 0; background: transparent; outline: none; }
+.xAt:focus-within { border-color: var(--gold); box-shadow: 0 0 0 2px #ffd24a55; }
+.xAt:has(input[aria-invalid]) { border-color: #d98b84; background: #fff6f5; }
+.xAt.xok { padding-right: 10px; color: var(--navy); } .xAt.xok::after { width: .95em; height: .95em; flex: none; } .xAt.xok input { font-weight: 700; color: var(--navy); }
+.xConn { display: flex; gap: 8px; align-items: center; } .xConn img { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); }
+#xMsg { margin: 4px 0 0; }
+.tag.self { opacity: .9; } .tag.self span { color: #9fe0ff; font-weight: 700; font-size: 12px; }
+.toast a.xshare { pointer-events: auto; color: #fff; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; padding: 2px 4px; margin: -2px -2px; }
+.toast.long { animation-duration: 8s; }
+.resWho { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--navy); } .resWho img { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); }
+@media (max-width: 700px) { .xAt { width: 100%; } .xConn { width: 100%; } }
+.who { display: flex; gap: 10px 12px; align-items: flex-end; flex-wrap: wrap; }
+@media (max-width: 700px) { .who { width: 100%; } .who > .nameIn { flex: 1 1 140px; } }
